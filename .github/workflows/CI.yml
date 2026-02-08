@@ -1,24 +1,36 @@
 name: CI
 on:
-  schedule:
-    - cron: '0 */2 * * *'
   workflow_dispatch:
   push:
     branches: [ master, main ]
 
 jobs:
-  # ======================
-  # 官方第一步：生成编译矩阵（所有板子列表）
-  # ======================
+  # ======================================================================
+  # 先把「你的代码 + 官方固件」合并好，再生成矩阵
+  # 这样你新加的变种才会被识别
+  # ======================================================================
   setup:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout meshtastic firmware
+      - name: Checkout 你的仓库 mtcn
+        uses: actions/checkout@v6
+        with:
+          path: mtcn
+
+      - name: Checkout meshtastic/firmware 官方源码
         uses: actions/checkout@v6
         with:
           repository: meshtastic/firmware
           path: firmware
           submodules: recursive
+
+      # 👇 这里先把你的修改应用上去
+      - name: 替换 variants 和你的配置
+        run: |
+          rm -rf firmware/variants
+          cp -r mtcn/variants firmware/
+          # 如果你改了 platformio.ini，也一起覆盖
+          [ -f mtcn/platformio.ini ] && cp mtcn/platformio.ini firmware/
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -27,66 +39,61 @@ jobs:
 
       - name: 安装 PlatformIO
         run: |
-          python -m pip install -U pip
           python -m pip install -U platformio
 
-      - name: 生成所有编译目标矩阵（官方脚本）
+      # 👇 用「你修改后的代码」生成矩阵（包含你新加的变种）
+      - name: 生成构建矩阵
         id: gen-matrix
         run: |
           cd firmware
           TARGETS=$(./bin/generate_ci_matrix.py all)
           echo "all=$TARGETS" >> $GITHUB_OUTPUT
+
     outputs:
       all: ${{ steps.gen-matrix.outputs.all }}
 
-  # ======================
-  # 官方第二步：矩阵编译（每个板子单独编译）
-  # ======================
+  # ======================================================================
+  # 官方风格矩阵构建
+  # 你新加的 env 会自动出现在这里并编译
+  # ======================================================================
   build:
     needs: setup
     runs-on: ubuntu-latest
-    # 官方核心：用 GitHub 矩阵循环编译每一块板子
     strategy:
       fail-fast: false
       matrix:
         build: ${{ fromJson(needs.setup.outputs.all) }}
 
     steps:
-      - name: Checkout mtcn（你的变种文件）
+      - name: Checkout 你的仓库
         uses: actions/checkout@v6
         with:
           path: mtcn
 
-      - name: Checkout meshtastic/firmware
+      - name: Checkout 官方固件
         uses: actions/checkout@v6
         with:
           repository: meshtastic/firmware
           path: firmware
           submodules: recursive
 
-      - name: 替换 variants（你原来的逻辑）
+      - name: 替换 variants
         run: |
           rm -rf firmware/variants
           cp -r mtcn/variants firmware/
+          [ -f mtcn/platformio.ini ] && cp mtcn/platformio.ini firmware/
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - name: 安装 PlatformIO + 解决 mklittlefs 报错
+      - name: 安装依赖 & 修复 mklittlefs
         run: |
-          python -m pip install -U pip
           python -m pip install -U platformio
-          pio pkg install -g -t tool-mklittlefs
-          pio pkg install -g -t tool-esptoolpy
+          pio pkg install -g -t tool-mklittlefs -t tool-esptoolpy
 
-      - name: 编译当前板子（官方标准命令）
+      - name: 编译 ${{ matrix.build.board }}
         run: |
           cd firmware
           pio run -e ${{ matrix.build.board }}
 
-      - name: 上传该板子固件
+      - name: 上传固件
         uses: actions/upload-artifact@v6
         with:
           name: firmware-${{ matrix.build.board }}
