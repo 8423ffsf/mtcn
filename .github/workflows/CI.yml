@@ -40,11 +40,11 @@ jobs:
           python -m pip install -U pip
           python -m pip install -U platformio
 
-      # 真正正确的构建命令！
+      # 正确：直接编译所有环境
       - name: Build all firmware
         run: |
           cd firmware
-          pio run -a
+          pio run
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
