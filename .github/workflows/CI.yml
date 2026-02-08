@@ -1,18 +1,16 @@
 name: CI
 on:
+  schedule:
+    - cron: '0 */2 * * *'
   workflow_dispatch:
   push:
     branches: [ master, main ]
 
 jobs:
-  # ======================================================================
-  # 先把「你的代码 + 官方固件」合并好，再生成矩阵
-  # 这样你新加的变种才会被识别
-  # ======================================================================
   setup:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 你的仓库 mtcn
+      - name: Checkout 你的 mtcn 仓库（variants）
         uses: actions/checkout@v6
         with:
           path: mtcn
@@ -24,13 +22,11 @@ jobs:
           path: firmware
           submodules: recursive
 
-      # 👇 这里先把你的修改应用上去
-      - name: 替换 variants 和你的配置
+      # 👇 只做这一件事：替换 variants，别的都不动
+      - name: 替换 variants
         run: |
           rm -rf firmware/variants
           cp -r mtcn/variants firmware/
-     
-          [ -f mtcn/platformio.ini ] && cp mtcn/platformio.ini firmware/
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -39,10 +35,10 @@ jobs:
 
       - name: 安装 PlatformIO
         run: |
+          python -m pip install -U pip
           python -m pip install -U platformio
 
-      
-      - name: 生成构建矩阵
+      - name: 生成所有板子矩阵（官方脚本，会包含你的新变种）
         id: gen-matrix
         run: |
           cd firmware
@@ -52,10 +48,6 @@ jobs:
     outputs:
       all: ${{ steps.gen-matrix.outputs.all }}
 
-  # ======================================================================
-  # 官方风格矩阵构建
-  # 你新加的 env 会自动出现在这里并编译
-  # ======================================================================
   build:
     needs: setup
     runs-on: ubuntu-latest
@@ -65,12 +57,12 @@ jobs:
         build: ${{ fromJson(needs.setup.outputs.all) }}
 
     steps:
-      - name: Checkout 你的仓库
+      - name: Checkout 你的 mtcn
         uses: actions/checkout@v6
         with:
           path: mtcn
 
-      - name: Checkout 官方固件
+      - name: Checkout meshtastic/firmware
         uses: actions/checkout@v6
         with:
           repository: meshtastic/firmware
@@ -81,12 +73,13 @@ jobs:
         run: |
           rm -rf firmware/variants
           cp -r mtcn/variants firmware/
-          [ -f mtcn/platformio.ini ] && cp mtcn/platformio.ini firmware/
 
-      - name: 安装依赖 & 修复 mklittlefs
+      - name: 安装 PlatformIO & 工具（修复 mklittlefs）
         run: |
+          python -m pip install -U pip
           python -m pip install -U platformio
-          pio pkg install -g -t tool-mklittlefs -t tool-esptoolpy
+          pio pkg install -g -t tool-mklittlefs
+          pio pkg install -t tool-esptoolpy
 
       - name: 编译 ${{ matrix.build.board }}
         run: |
@@ -94,7 +87,7 @@ jobs:
           pio run -e ${{ matrix.build.board }}
 
       - name: 上传固件
-        uses: actions/upload-artifact@v6
+        uses: upload-artifact@v6
         with:
           name: firmware-${{ matrix.build.board }}
           path: |
