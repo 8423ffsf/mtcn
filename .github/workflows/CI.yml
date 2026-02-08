@@ -43,7 +43,7 @@ jobs:
       - name: 编译全部固件
         run: |
           cd firmware
-          pio run -a
+          pio run --all --parallel
 
       - name: 上传所有固件
         uses: actions/upload-artifact@v6
