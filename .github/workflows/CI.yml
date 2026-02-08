@@ -13,50 +13,50 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout current repo (mtcn)
-        uses: actions/checkout@v4
+      - name: Checkout your repo (mtcn)
+        uses: actions/checkout@v6
         with:
           path: mtcn
 
       - name: Checkout meshtastic/firmware
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: meshtastic/firmware
           path: firmware
-          submodules: true
-          fetch-depth: 1
+          submodules: recursive
 
-      - name: List dir to confirm
-        run: ls -la && ls -la firmware
-
+      # 你要的核心：替换 variants
       - name: Replace variants
         run: |
           rm -rf firmware/variants
           cp -r mtcn/variants firmware/
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Install dependencies
+      # 只装 platformio，不读 requirements.txt！
+      - name: Install PlatformIO
         run: |
           cd firmware
           python -m pip install -U pip
           python -m pip install -U platformio
-          python -m pip install -r requirements.txt
 
-      - name: Build
+      # 直接构建，这是官方真正的命令
+      - name: Build firmware
         run: |
           cd firmware
           python build.py --matrix
 
+      # 上传固件
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: firmware
+          name: compiled-firmware
           path: |
             firmware/release/*.bin
             firmware/release/*.uf2
             firmware/release/*.hex
             firmware/release/*.zip
+            firmware/release/*.mt.json
