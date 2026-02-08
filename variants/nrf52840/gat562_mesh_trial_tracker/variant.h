@@ -19,10 +19,6 @@
 #ifndef _VARIANT_GAT562_MESH_TRIAL_TRACKER_
 #define _VARIANT_GAT562_MESH_TRIAL_TRACKER_
 
-#ifndef GAT562_MESH_TRIAL_TRACKER
-#define GAT562_MESH_TRIAL_TRACKER
-#endif
-
 // led pin 2 (blue), see https://github.com/meshtastic/firmware/blob/master/src/mesh/NodeDB.cpp#L723
 #define RAK4630
 
@@ -50,13 +46,10 @@ extern "C" {
 
 // LEDs
 #define PIN_LED1 (35)
-#define PIN_LED2 (36)
-
-#define LED_BUILTIN PIN_LED1
-#define LED_CONN PIN_LED2
+#define LED_BLUE (36)
 
 #define LED_GREEN PIN_LED1
-#define LED_BLUE PIN_LED2
+#define LED_NOTIFICATION LED_BLUE
 
 #define LED_STATE_ON 1 // State when LED is litted
 
@@ -64,14 +57,9 @@ extern "C" {
  * Buttons
  */
 
-#if defined(GAT562_MESH_TRACKER_PRO)
-#define BUTTON_PIN 9
+#define PIN_BUTTON1 9 // Pin for button on E-ink button module or IO expansion
 #define BUTTON_NEED_PULLUP
-#else
-#define PIN_BUTTON1 9
-#define BUTTON_NEED_PULLUP
-#define PIN_BUTTON2 10
-#endif
+#define PIN_BUTTON2 12
 
 /*
  * Analog pins
@@ -148,10 +136,7 @@ static const uint8_t SCK = PIN_SPI_SCK;
 #define USE_SSD1306
 
 // RAKRGB
-#ifdef HAS_NEOPIXEL      // Enable the use of neopixels
-#define NEOPIXEL_COUNT 1 // How many neopixels are connected
-#define NEOPIXEL_TYPE (NEO_GRB + NEO_KHZ800)
-#endif
+// #define HAS_NCP5623
 
 /*
  * Wire Interfaces
@@ -170,7 +155,7 @@ static const uint8_t SCK = PIN_SPI_SCK;
 #define PIN_QSPI_IO3 2
 
 // On-board QSPI Flash
-#define EXTERNAL_FLASH_DEVICES W25Q16JV_IQ
+#define EXTERNAL_FLASH_DEVICES IS25LP080D
 #define EXTERNAL_FLASH_USE_QSPI
 
 /* @note RAK5005-O GPIO mapping to RAK4631 GPIO ports
@@ -247,8 +232,6 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 // Power is on the controllable 3V3_S rail
 // #define PIN_GPS_RESET (34)
 // #define PIN_GPS_EN PIN_3V3_EN
-#define PIN_GPS_EN PIN_3V3_EN // P1.02, (32 + 2)
-
 #define PIN_GPS_PPS (17) // Pulse per second input from the GPS
 
 #define GPS_BAUDRATE 9600
@@ -262,7 +245,7 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 // #define RV3028_RTC (uint8_t)0b1010010
 
 // RAK18001 Buzzer in Slot C
-#define PIN_BUZZER 33 // IO3 is PWM2
+// #define PIN_BUZZER 21 // IO3 is PWM2
 // NEW: set this via protobuf instead!
 
 // Battery
@@ -274,8 +257,7 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 #undef AREF_VOLTAGE
 #define AREF_VOLTAGE 3.0
 #define VBAT_AR_INTERNAL AR_INTERNAL_3_0
-
-// #define HAS_RTC 1
+#define ADC_MULTIPLIER 1.73
 
 // #define HAS_ETHERNET 1
 
