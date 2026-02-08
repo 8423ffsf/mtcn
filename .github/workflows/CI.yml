@@ -13,17 +13,25 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout your mtcn repo
+      - name: Checkout mtcn
         uses: actions/checkout@v6
         with:
           path: mtcn
 
-      - name: Checkout official meshtastic/firmware
+      - name: Checkout meshtastic/firmware
         uses: actions/checkout@v6
         with:
           repository: meshtastic/firmware
           path: firmware
           submodules: recursive
+
+      # 先看看到底拉了什么
+      - name: List all files
+        run: |
+          pwd
+          ls -la
+          ls -la firmware
+          ls -la firmware/bin
 
       - name: Replace variants
         run: |
@@ -37,23 +45,16 @@ jobs:
 
       - name: Install PlatformIO
         run: |
-          cd firmware
           python -m pip install -U pip
           python -m pip install -U platformio
 
-      # 这里才是正确的构建命令！
-      - name: Build firmware
+      # 用官方真正的 CI 命令，不自己瞎写
+      - name: Generate CI matrix
         run: |
           cd firmware
-          python ./bin/build.py --matrix
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: compiled-firmware
-          path: |
-            firmware/release/*.bin
-            firmware/release/*.uf2
-            firmware/release/*.hex
-            firmware/release/*.zip
-            firmware/release/*.mt.json
+          python bin/generate_ci_matrix.py all
+          
+      - name: Build
+        run: |
+          cd firmware
+          pio run -a
