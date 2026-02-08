@@ -1,5 +1,7 @@
 name: Build Single (Manual Input)
+
 on:
+  # 手动触发（需输入要编译的设备 env 名称）
   workflow_dispatch:
     inputs:
       board:
@@ -9,34 +11,39 @@ on:
         type: string
 
 jobs:
+  # Job: 单设备编译
   build:
     runs-on: ubuntu-latest
-    # 👈 这里删掉了 continue-on-error，失败就变红、失败
 
     steps:
-      - name: Checkout mtcn
+      # 拉取本仓库（自定义 variants 配置）
+      - name: Checkout 本地自定义配置
         uses: actions/checkout@v6
         with:
           path: mtcn
 
-      - name: Checkout meshtastic/firmware
+      # 拉取官方 Meshtastic 固件源码
+      - name: Checkout 官方固件源码
         uses: actions/checkout@v6
         with:
           repository: meshtastic/firmware
           path: firmware
           submodules: recursive
 
-      - name: 替换 variants
+      # 替换为自定义硬件变种配置
+      - name: 应用自定义硬件变种(variants)
         run: |
           rm -rf firmware/variants
           cp -r mtcn/variants firmware/
 
-      - name: Setup Python 3.11
+      # 配置 Python 运行环境
+      - name: 配置 Python 3.11 环境
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
-      - name: 安装 PlatformIO & 工具
+      # 安装编译工具链（解决 mklittlefs 缺失问题）
+      - name: 安装 PlatformIO 及依赖工具
         run: |
           python -m pip install -U pip
           python -m pip install -U platformio
@@ -44,12 +51,14 @@ jobs:
           pio pkg install -g -t tool-mklittlefs
           pio pkg install -g -t tool-esptoolpy
 
-      - name: 编译 ${{ inputs.board }}
+      # 编译指定设备
+      - name: 编译目标设备: ${{ inputs.board }}
         run: |
           cd firmware
           pio run -e ${{ inputs.board }}
 
-      - name: 上传固件
+      # 上传编译后的固件产物
+      - name: 上传目标设备固件
         uses: actions/upload-artifact@v6
         with:
           name: firmware-${{ inputs.board }}
