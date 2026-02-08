@@ -1,12 +1,9 @@
 name: Meshtastic 固件自动构建
 
 on:
-  # 定时自动构建（每2小时）同步官方分支
   schedule:
     - cron: '0 */2 * * *'
-  # 手动触发构建
   workflow_dispatch:
-  # 推送到 master/main 分支时自动构建
   push:
     branches: [ master, main ]
 
@@ -17,13 +14,11 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     steps:
-      # 拉取本仓库（你的 variants 配置）
       - name: Checkout 本地自定义配置
         uses: actions/checkout@v6
         with:
           path: mtcn
 
-      # 拉取官方 Meshtastic 固件源码
       - name: Checkout 官方固件源码
         uses: actions/checkout@v6
         with:
@@ -31,25 +26,38 @@ jobs:
           path: firmware
           submodules: recursive
 
-      # 替换 variants 为你的自定义硬件配置
+      # 替换 variants
       - name: 应用自定义硬件变种(variants)
         run: |
           rm -rf firmware/variants
           cp -r mtcn/variants firmware/
 
-      # 配置 Python 环境
+      # ======================
+      # 【关键】应用 patches
+      # ======================
+      - name: 应用自定义补丁(patch)
+        run: |
+          if [ -d "mtcn/patches" ]; then
+            cd firmware
+            for patch in ../mtcn/patches/*.patch; do
+              if [ -f "$patch" ]; then
+                echo "Applying patch: $patch"
+                patch -p1 < "$patch"
+              fi
+            done
+          fi
+
+      # 配置 Python
       - name: 配置 Python 环境
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
-      # 安装 PlatformIO 核心工具
       - name: 安装 PlatformIO
         run: |
           python -m pip install -U pip
           python -m pip install -U platformio
 
-      # 调用官方脚本，生成所有设备的编译矩阵
       - name: 生成全设备编译矩阵
         id: gen-matrix
         run: |
@@ -57,7 +65,6 @@ jobs:
           TARGETS=$(./bin/generate_ci_matrix.py all)
           echo "all=$TARGETS" >> $GITHUB_OUTPUT
 
-    # 导出矩阵数据给 build 任务使用
     outputs:
       all: ${{ steps.gen-matrix.outputs.all }}
 
@@ -68,21 +75,17 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     strategy:
-      # 单个设备编译失败，不中断其他设备
       fail-fast: false
       matrix:
         build: ${{ fromJson(needs.setup.outputs.all) }}
-    # 允许个别任务失败，整体 CI 仍显示绿色通过
     continue-on-error: true
 
     steps:
-      # 拉取自定义配置
       - name: Checkout 本地自定义配置
         uses: actions/checkout@v6
         with:
           path: mtcn
 
-      # 拉取官方源码
       - name: Checkout 官方固件源码
         uses: actions/checkout@v6
         with:
@@ -90,13 +93,26 @@ jobs:
           path: firmware
           submodules: recursive
 
-      # 替换自定义硬件配置
       - name: 应用自定义硬件变种(variants)
         run: |
           rm -rf firmware/variants
           cp -r mtcn/variants firmware/
 
-      # 安装编译依赖工具（解决 mklittlefs 缺失问题）
+      # ======================
+      # 【编译阶段patch】
+      # ======================
+      - name: 应用自定义补丁(patch)
+        run: |
+          if [ -d "mtcn/patches" ]; then
+            cd firmware
+            for patch in ../mtcn/patches/*.patch; do
+              if [ -f "$patch" ]; then
+                echo "Applying patch: $patch"
+                patch -p1 < "$patch"
+              fi
+            done
+          fi
+
       - name: 安装编译工具链
         run: |
           python -m pip install -U pip
@@ -105,13 +121,11 @@ jobs:
           pio pkg install -g -t tool-mklittlefs
           pio pkg install -g -t tool-esptoolpy
 
-      # 编译当前设备
       - name: 构建设备 ${{ matrix.build.board }}
         run: |
           cd firmware
           pio run -e ${{ matrix.build.board }}
 
-      # 上传编译产出固件文件
       - name: 上传固件产物
         uses: actions/upload-artifact@v6
         with:
