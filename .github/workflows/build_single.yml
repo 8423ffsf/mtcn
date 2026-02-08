@@ -52,7 +52,7 @@ jobs:
           pio pkg install -g -t tool-esptoolpy
 
       # 编译指定设备
-      - name: 编译目标设备: ${{ inputs.board }}
+      - name: 编译目标设备 ${{ inputs.board }}
         run: |
           cd firmware
           pio run -e ${{ inputs.board }}
