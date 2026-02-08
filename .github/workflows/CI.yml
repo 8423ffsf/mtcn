@@ -2,7 +2,7 @@ name: CI
 on:
   schedule:
     - cron: '0 */2 * * *'  # 每 2 小时
-  workflow_dispatch:      # 手动运行
+  workflow_dispatch:      # 可手动触发
   push:
     branches: [ master, main ]
 
@@ -22,7 +22,7 @@ jobs:
           path: firmware
           submodules: recursive
 
-      - name: Replace variants
+      - name: 替换 variants
         run: |
           rm -rf firmware/variants
           cp -r mtcn/variants firmware/
@@ -32,21 +32,21 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install PlatformIO
+      - name: 安装 PlatformIO
         run: |
           python -m pip install -U pip
           python -m pip install -U platformio
 
-      - name: Build tbeam
+      - name: 编译全部固件
         run: |
           cd firmware
-          pio run -e tbeam
+          pio run
 
-      - name: Upload artifacts
+      - name: 上传所有固件
         uses: actions/upload-artifact@v6
         with:
-          name: compiled-firmware
+          name: all-firmwares
           path: |
-            firmware/.pio/build/tbeam/*.bin
-            firmware/.pio/build/tbeam/*.uf2
-            firmware/.pio/build/tbeam/*.hex
+            firmware/.pio/build/**/*.bin
+            firmware/.pio/build/**/*.uf2
+            firmware/.pio/build/**/*.hex
